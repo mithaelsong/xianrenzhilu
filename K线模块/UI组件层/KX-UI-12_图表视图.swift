@@ -1007,6 +1007,22 @@ public class KXUI12KLineChartView: NSView {
         logger.info("[DIAG][KX-UI-12] reloadExternalOverlays target=\(target.timeframe?.rawValue ?? "nil") candles=\(candles.count) overlays=\(overlays.count) main=\(mainOverlays.count) sub=\(subOverlays.count) visibleInstances=\(overlaysByInstance.keys.count)")
     }
 
+    /// 副图数量（供面板快照使用）
+    public func subpaneSlotCount() -> Int { subpaneSlots.count }
+    public var isVolumePaneVisible: Bool { !isVolumeCollapsed }
+    public func subpaneIndicatorNames() -> [String] {
+        subpaneSlots.map { slot -> String in
+            let name = {
+                if let iid = slot.instanceID, let name = KXProfessionalIndicatorInstanceManager.shared.instance(id: iid)?.indicatorName {
+                    return name
+                }
+                return slot.indicators.first?.name ?? "?"
+            }()
+            if slot.isExpanded { return name }
+            return "\(name)[折叠]"
+        }
+    }
+
     public func reloadPaneLayout() {
         // TODO: 接入 KX-FN-36 pane layout manager
         logger.info("[KLine][Pane] reloadPaneLayout")
@@ -1299,6 +1315,7 @@ public class KXUI12KLineChartView: NSView {
 
     @objc private func closeSubpane(_ sender: KXUIGlassIconButton) {
         guard let index = subpaneCloseButtons.firstIndex(of: sender) else { return }
+        logger.info("[KLine][UI][Panel] subpaneClose index=\(index) symbol=\(symbol) tf=\(timeframe.rawValue)")
         removeSubpaneSlot(at: index)
     }
 
@@ -1703,6 +1720,7 @@ public class KXUI12KLineChartView: NSView {
             instanceID: instance.id
         )
         subpaneSlots.insert(slot, at: 0)
+        logger.info("[KLine][UI][Panel] subpaneOpen name=\(instance.indicatorName) id=\(instance.id) symbol=\(symbol) tf=\(timeframe.rawValue)")
 
         // 专业指标用新 overlay renderer 渲染到副图
         let renderer = KXUI19ChartOverlayRendererLayer()

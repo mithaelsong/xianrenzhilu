@@ -644,6 +644,11 @@ public enum KXFN25PatternOverlayBridge {
             try manager.removeOverlay(moduleID: moduleID, overlayID: overlay.id)
         }
         try manager.submitOverlays(overlays)
+        if !markers.isEmpty {
+            let patternLabels = markers.map { "\(patternID(from: $0))@\($0.coordinate.time?.timeIntervalSince1970 ?? 0)" }.joined(separator: ",")
+            let tfStr = target.timeframe?.rawValue ?? "nil"
+            klineLogger.info("[KLine][Pattern][Tag] symbol=\(target.instrumentID) tf=\(tfStr) count=\(markers.count) patterns=\(patternLabels)")
+        }
         return overlays
     }
 

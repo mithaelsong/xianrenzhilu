@@ -137,6 +137,7 @@ public extension KXUI09KLinePanelView {
             self?.refreshKLineThemeColors()
         }
         layoutSubtreeIfNeeded()
+        logPanelSnapshot()
     }
 
     /// ⚠️ 2026-06-22:主题变化时统一刷新 K线所有颜色(由 UI 模块主题监听机制回调驱动)。
@@ -468,6 +469,7 @@ public extension KXUI09KLinePanelView {
             KLDefaultStartupPipeline.shared.syncOpenedSymbols(timeframeBySymbol: timeframeMap(for: remainingTabs), activeSymbol: nextActive, orderedSymbols: remainingTabs)
         }
         persistLayoutState()
+        logPanelSnapshot()
     }
 
     // MARK: - 多画布管理(一个 币对×周期 = 一张独立画布)
@@ -666,6 +668,7 @@ public extension KXUI09KLinePanelView {
         // 多画布:切到该(币对×周期)画布(已存在直接显示不重画),随后错峰预建该币对可见周期。
         showCanvas(symbol: instID, timeframe: timeframe)
         scheduleVisibleCanvasPrebuild(symbol: instID, visibleTimeframes: visibleTFs, selectedTimeframe: timeframe)
+        logPanelSnapshot()
     }
 
     private func switchTimeframe(_ timeframe: KXTimeframe) {
@@ -686,6 +689,7 @@ public extension KXUI09KLinePanelView {
         // 不再 post .KLChartTimeframeSelected:每张画布周期固定,全局通知会让同币对多周期画布互抢。
         showCanvas(symbol: instID, timeframe: timeframe)
         scheduleVisibleCanvasPrebuild(symbol: instID, visibleTimeframes: activeVisibleTimeframes(), selectedTimeframe: timeframe)
+        logPanelSnapshot()
     }
 
     /// 指标按钮点击
@@ -694,6 +698,7 @@ public extension KXUI09KLinePanelView {
         guard let chartView = klineChartView else { return }
         chartView.addTechnicalIndicator(indicator)
         logger.info("[KLine] 已添加指标到图表: \(indicator.name)")
+        logPanelSnapshot()
     }
 
     // MARK: - 点击置顶功能
@@ -999,6 +1004,22 @@ extension KXUI09KLinePanelView {
         var vmap = visibleTimeframesByInstrument
         vmap.removeValue(forKey: instID)   // 关标签同步清理该币对的可见集合,下次重开回默认
         visibleTimeframesByInstrument = vmap
+    }
+}
+
+// MARK: - 面板快照
+
+private extension KXUI09KLinePanelView {
+    func logPanelSnapshot() {
+        let tabBar = activeTabBar()
+        let allTabs = tabBar?.tabs ?? []
+        let activeID = tabBar?.activeTabID ?? panelContext.initialInstrumentID
+        let activeTF = timeframeForInstrument(activeID)
+        let subpaneCount = canvasByKey.values.first?.subpaneSlotCount() ?? 0
+        let subpaneNames = canvasByKey.values.first?.subpaneIndicatorNames() ?? []
+        logger.info("[KLine][Panel][Snapshot] tabs=\(allTabs.count):\(allTabs.joined(separator: ",")) active=\(activeID) tf=\(activeTF.rawValue) subpanes=\(subpaneCount):\(subpaneNames.joined(separator: ","))")
+        let snapshotLine = "\(ISO8601DateFormatter().string(from: Date()))|\(allTabs.joined(separator: ","))|\(activeID)|\(activeTF.rawValue)|subpanes=\(subpaneCount):\(subpaneNames.joined(separator: ","))\n"
+        try? snapshotLine.write(toFile: "/tmp/kline_panel_state.txt", atomically: true, encoding: String.Encoding.utf8)
     }
 }
 
